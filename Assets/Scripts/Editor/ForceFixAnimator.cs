@@ -251,6 +251,7 @@ public class ForceFixAnimator
                     cf.minDistance = 14f;
                     cf.maxDistance = 34f;
                     cf.pitchAngle = 38f;
+                    cf.clampYaw = false;
                     cf.minYawAngle = -70f;
                     cf.maxYawAngle = 70f;
                     EditorUtility.SetDirty(cf);

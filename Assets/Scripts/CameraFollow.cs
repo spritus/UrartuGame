@@ -22,10 +22,12 @@ public class CameraFollow : MonoBehaviour
     [Tooltip("Yukarıdan bakış açısı (daha yukarıdan bakması için yükseltildi)")]
     public float pitchAngle = 38f;
     [Tooltip("A ve D tuşları ile yatay açı dönüş hızı")]
-    public float yawSpeed = 65f;
-    [Tooltip("Sola maksimum açı sınırı (karakterin önüne geçmez)")]
+    public float yawSpeed = 75f;
+    [Tooltip("A ve D tuşlarının dönüş açısını sınırla (false: 360 derece serbest tam dönüş)")]
+    public bool clampYaw = false;
+    [Tooltip("Sola maksimum açı sınırı (clampYaw açıkken geçerlidir)")]
     public float minYawAngle = -70f;
-    [Tooltip("Sağa maksimum açı sınırı (karakterin önüne geçmez)")]
+    [Tooltip("Sağa maksimum açı sınırı (clampYaw açıkken geçerlidir)")]
     public float maxYawAngle = 70f;
 
     [Header("Smoothing")]
@@ -78,7 +80,7 @@ public class CameraFollow : MonoBehaviour
             }
             targetDistance = Mathf.Clamp(targetDistance, minDistance, maxDistance);
 
-            // A / D: Sağa ve Sola Açı Değiştirme (Karakterin önüne geçmeyecek şekilde sınırlı)
+            // A / D: 360 Derece Serbest Orbit Kamera Dönüşü (A ve D ile tam dönüş kısıtlaması kaldırıldı)
             if (Keyboard.current.aKey.isPressed)
             {
                 targetYaw -= yawSpeed * Time.deltaTime;
@@ -87,7 +89,21 @@ public class CameraFollow : MonoBehaviour
             {
                 targetYaw += yawSpeed * Time.deltaTime;
             }
-            targetYaw = Mathf.Clamp(targetYaw, minYawAngle, maxYawAngle);
+
+            // İsteğe bağlı sınırlandırma (varsayılan olarak false: kısıtlama yok, tam döner)
+            if (clampYaw)
+            {
+                targetYaw = Mathf.Clamp(targetYaw, minYawAngle, maxYawAngle);
+            }
+            else
+            {
+                // Sürekli dönüşte float değerlerinin aşırı büyümesini önlemek için periyodik dengeleme
+                if (Mathf.Abs(targetYaw) >= 3600f)
+                {
+                    targetYaw %= 360f;
+                    currentYaw %= 360f;
+                }
+            }
         }
 
         // Değerleri yumuşak bir şekilde hedefe doğru yaklaştır

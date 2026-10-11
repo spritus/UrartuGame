@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 12146, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: NewBrush
   m_EditorClassIdentifier: UnityEditor.dll::UnityEditor.Brush
-  m_Mask: {fileID: 2800000, guid: b57c0eeb0e102a34e9178d0958d6675b, type: 3}
+  m_Mask: {fileID: 2800000, guid: ee5084a036b6b7d4da8e7db60d89fcf1, type: 3}
   m_Falloff:
     serializedVersion: 2
     m_Curve:
