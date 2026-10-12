@@ -69,7 +69,7 @@ Material:
     m_Floats:
     - _BumpScale: 1
     - _Cull: 0
-    - _Cutoff: 0.5
+    - _Cutoff: 0.314
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _GlossMapScale: 1
@@ -86,9 +86,9 @@ Material:
     - _WindQuality: 4
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 1, g: 1, b: 1, a: 0.999}
+    - _Color: {r: 0.93333334, g: 0.7268419, b: 0.5058824, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _HueVariation: {r: 1, g: 0.43448272, b: 0, a: 0}
+    - _HueVariation: {r: 0.7176471, g: 0.4627451, b: 0.5254902, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
 --- !u!114 &3535587454788280286

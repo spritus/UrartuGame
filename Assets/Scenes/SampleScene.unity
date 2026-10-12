@@ -14,12 +14,12 @@ OcclusionCullingSettings:
 RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 10
-  m_Fog: 0
-  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  m_FogMode: 3
+  m_Fog: 1
+  m_FogColor: {r: 0.40392157, g: 0.45176905, b: 0.6392157, a: 1}
+  m_FogMode: 1
   m_FogDensity: 0.01
-  m_LinearFogStart: 0
-  m_LinearFogEnd: 300
+  m_LinearFogStart: 50
+  m_LinearFogEnd: 200
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
@@ -169,7 +169,7 @@ Terrain:
   serializedVersion: 6
   m_TerrainData: {fileID: 15600000, guid: ee5495a102fd3ea42a09a2db1da8848d, type: 2}
   m_TreeDistance: 5000
-  m_TreeBillboardDistance: 50
+  m_TreeBillboardDistance: 210
   m_TreeCrossFadeLength: 5
   m_TreeMaximumFullLODCount: 50
   m_DetailObjectDistance: 80
@@ -272,8 +272,8 @@ Camera:
   m_GameObject: {fileID: 330585543}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0.40392157, g: 0.4509804, b: 0.6156863, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -571,15 +571,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: e12de0aec588c9543977436c310c2357, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 412.6
+      value: 394.97
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: e12de0aec588c9543977436c310c2357, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 28.08
+      value: 29.76
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: e12de0aec588c9543977436c310c2357, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 524.9
+      value: 533.67
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: e12de0aec588c9543977436c310c2357, type: 3}
       propertyPath: m_LocalRotation.w

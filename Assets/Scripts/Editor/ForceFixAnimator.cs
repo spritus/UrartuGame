@@ -238,6 +238,8 @@ public class ForceFixAnimator
                 hc.stickToGroundForce = 15f;
                 hc.groundSnapDistance = 1.5f;
                 hc.airControl = 0.35f;
+                hc.enableCenterLimit = true;
+                hc.maxDistancePercentage = 0.70f;
                 EditorUtility.SetDirty(hc);
 
                 // Kamera Takibi

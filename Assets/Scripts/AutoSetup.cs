@@ -97,6 +97,8 @@ public class AutoSetup : MonoBehaviour
             hc.stickToGroundForce = 15f;
             hc.groundSnapDistance = 1.5f;
             hc.airControl = 0.35f;
+            hc.enableCenterLimit = true;
+            hc.maxDistancePercentage = 0.70f;
 
 #if UNITY_EDITOR
             // Controller kontrolü ve otomatik bağlama

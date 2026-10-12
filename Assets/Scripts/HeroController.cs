@@ -34,14 +34,55 @@ public class HeroController : MonoBehaviour
     public string idleAnimation = "Idle"; 
     public string runAnimation = "Run"; 
 
+    [Header("Center Boundary Settings (Merkez Sınırlandırması)")]
+    [Tooltip("Hero'nun merkezden belirli bir orandan fazla uzaklaşmasını engeller")]
+    public bool enableCenterLimit = true;
+
+    [Tooltip("Merkezden izin verilen maksimum uzaklaşma yüzdesi (0.70 = %70)")]
+    [Range(0.1f, 1f)]
+    public float maxDistancePercentage = 0.70f;
+
+    public enum BoundaryShape
+    {
+        Circle, // Dairesel sınır (Merkezden yarıçap)
+        Box     // Karesel / Dikdörtgen sınır (Harita kenarlarına göre)
+    }
+
+    [Tooltip("Sınırlandırma geometrisi (Dairesel veya Karesel)")]
+    public BoundaryShape boundaryShape = BoundaryShape.Circle;
+
+    public enum CenterReferenceType
+    {
+        TerrainCenter,     // Sahnedeki Terrain'in merkezi (Önerilen)
+        StartingPosition,  // Karakterin başladığı ilk konum
+        CustomPoint        // Özel koordinat veya obje
+    }
+
+    [Tooltip("Merkez noktasının belirlenme yöntemi")]
+    public CenterReferenceType centerType = CenterReferenceType.TerrainCenter;
+
+    [Tooltip("Özel merkez obje referansı (CustomPoint seçildiğinde kullanılır)")]
+    public Transform customCenterTransform;
+
+    [Tooltip("Özel merkez koordinatı")]
+    public Vector3 customCenterPosition = Vector3.zero;
+
+    [Tooltip("Özel maksimum yarıçap (0 bırakılırsa Terrain boyutunun yarısı otomatik alınır)")]
+    public float customMaxDistance = 0f;
+
     private Animator animator;
     private CharacterController characterController;
     private bool isMoving = false;
     private float verticalVelocity = 0f;
     private bool wasGrounded = true;
+    private Vector3 startingPosition;
+    private Terrain cachedTerrain;
 
     void Start()
     {
+        startingPosition = transform.position;
+        cachedTerrain = Terrain.activeTerrain;
+        if (cachedTerrain == null) cachedTerrain = FindAnyObjectByType<Terrain>();
         animator = GetComponent<Animator>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
 
@@ -203,11 +244,90 @@ public class HeroController : MonoBehaviour
             }
         }
 
+        // 4. MERKEZDEN UZAKLAŞMA SINIRLAMASI (%70 Sınırı - Hareketi sınırda yumuşakça teğet kaydır):
+        if (enableCenterLimit)
+        {
+            Vector3 center = GetCenterPoint();
+            Vector2 halfExtents = GetMaxHalfExtents();
+
+            if (boundaryShape == BoundaryShape.Circle)
+            {
+                float maxRadius = Mathf.Min(halfExtents.x, halfExtents.y);
+                Vector3 diff = transform.position - center;
+                diff.y = 0f;
+                float currentDist = diff.magnitude;
+
+                if (currentDist > 0.001f)
+                {
+                    Vector3 outwardDir = diff / currentDist;
+
+                    // Eğer karakter sınıra ulaştıysa veya dışındaysa:
+                    if (currentDist >= maxRadius - 0.05f)
+                    {
+                        // Dışarıya (merkezden uzağa) olan hız bileşenini kaldır (teğet kaymaya izin ver)
+                        float outwardSpeed = Vector3.Dot(moveVelocity, outwardDir);
+                        if (outwardSpeed > 0f)
+                        {
+                            moveVelocity.x -= outwardDir.x * outwardSpeed;
+                            moveVelocity.z -= outwardDir.z * outwardSpeed;
+                        }
+                    }
+                }
+            }
+            else // Box
+            {
+                float minX = center.x - halfExtents.x;
+                float maxX = center.x + halfExtents.x;
+                float minZ = center.z - halfExtents.y;
+                float maxZ = center.z + halfExtents.y;
+
+                if (transform.position.x >= maxX - 0.05f && moveVelocity.x > 0f) moveVelocity.x = 0f;
+                if (transform.position.x <= minX + 0.05f && moveVelocity.x < 0f) moveVelocity.x = 0f;
+                if (transform.position.z >= maxZ - 0.05f && moveVelocity.z > 0f) moveVelocity.z = 0f;
+                if (transform.position.z <= minZ + 0.05f && moveVelocity.z < 0f) moveVelocity.z = 0f;
+            }
+        }
+
         // Dikey yerçekimi bileşenini ekle
         moveVelocity.y += verticalVelocity;
 
         // Karakteri hareket ettir
         characterController.Move(moveVelocity * Time.deltaTime);
+
+        // Hareket sonrası pozisyonu mutlak sınırda tut (kesin güvenlik kilidi)
+        if (enableCenterLimit)
+        {
+            Vector3 center = GetCenterPoint();
+            Vector2 halfExtents = GetMaxHalfExtents();
+
+            if (boundaryShape == BoundaryShape.Circle)
+            {
+                float maxRadius = Mathf.Min(halfExtents.x, halfExtents.y);
+                Vector3 finalDiff = transform.position - center;
+                finalDiff.y = 0f;
+
+                if (finalDiff.magnitude > maxRadius)
+                {
+                    Vector3 clamped = center + finalDiff.normalized * maxRadius;
+                    clamped.y = transform.position.y;
+                    characterController.enabled = false;
+                    transform.position = clamped;
+                    characterController.enabled = true;
+                }
+            }
+            else // Box
+            {
+                float clampedX = Mathf.Clamp(transform.position.x, center.x - halfExtents.x, center.x + halfExtents.x);
+                float clampedZ = Mathf.Clamp(transform.position.z, center.z - halfExtents.y, center.z + halfExtents.y);
+
+                if (Mathf.Abs(clampedX - transform.position.x) > 0.001f || Mathf.Abs(clampedZ - transform.position.z) > 0.001f)
+                {
+                    characterController.enabled = false;
+                    transform.position = new Vector3(clampedX, transform.position.y, clampedZ);
+                    characterController.enabled = true;
+                }
+            }
+        }
 
         // Bir sonraki kare için zemin bilgisini sakla
         wasGrounded = characterController.isGrounded;
@@ -241,5 +361,98 @@ public class HeroController : MonoBehaviour
         }
 
         return found;
+    }
+
+    /// <summary>
+    /// Sınırlandırmanın referans merkez noktasını döner
+    /// </summary>
+    public Vector3 GetCenterPoint()
+    {
+        if (centerType == CenterReferenceType.StartingPosition)
+        {
+            return startingPosition != Vector3.zero ? startingPosition : transform.position;
+        }
+        else if (centerType == CenterReferenceType.CustomPoint)
+        {
+            if (customCenterTransform != null) return customCenterTransform.position;
+            return customCenterPosition;
+        }
+        else // TerrainCenter
+        {
+            if (cachedTerrain == null)
+            {
+                cachedTerrain = Terrain.activeTerrain;
+                if (cachedTerrain == null) cachedTerrain = FindAnyObjectByType<Terrain>();
+            }
+
+            if (cachedTerrain != null && cachedTerrain.terrainData != null)
+            {
+                Vector3 tPos = cachedTerrain.transform.position;
+                Vector3 tSize = cachedTerrain.terrainData.size;
+                return new Vector3(tPos.x + tSize.x * 0.5f, transform.position.y, tPos.z + tSize.z * 0.5f);
+            }
+
+            return startingPosition != Vector3.zero ? startingPosition : transform.position;
+        }
+    }
+
+    /// <summary>
+    /// Merkezden izin verilen maksimum yarım eksen mesafelerini döner
+    /// </summary>
+    public Vector2 GetMaxHalfExtents()
+    {
+        if (customMaxDistance > 0f)
+        {
+            return new Vector2(customMaxDistance, customMaxDistance) * maxDistancePercentage;
+        }
+
+        if (cachedTerrain == null)
+        {
+            cachedTerrain = Terrain.activeTerrain;
+            if (cachedTerrain == null) cachedTerrain = FindAnyObjectByType<Terrain>();
+        }
+
+        if (cachedTerrain != null && cachedTerrain.terrainData != null)
+        {
+            Vector3 tSize = cachedTerrain.terrainData.size;
+            return new Vector2(tSize.x * 0.5f, tSize.z * 0.5f) * maxDistancePercentage;
+        }
+
+        return new Vector2(500f, 500f) * maxDistancePercentage;
+    }
+
+    /// <summary>
+    /// Editörde sınır alanını görselleştirir
+    /// </summary>
+    private void OnDrawGizmosSelected()
+    {
+        if (!enableCenterLimit) return;
+
+        Vector3 center = Application.isPlaying ? GetCenterPoint() : (Terrain.activeTerrain != null ? Terrain.activeTerrain.transform.position + new Vector3(Terrain.activeTerrain.terrainData.size.x * 0.5f, transform.position.y, Terrain.activeTerrain.terrainData.size.z * 0.5f) : transform.position);
+        center.y = transform.position.y;
+
+        Vector2 halfExtents = Application.isPlaying ? GetMaxHalfExtents() : (Terrain.activeTerrain != null ? new Vector2(Terrain.activeTerrain.terrainData.size.x * 0.5f, Terrain.activeTerrain.terrainData.size.z * 0.5f) * maxDistancePercentage : new Vector2(500f, 500f) * maxDistancePercentage);
+
+        Gizmos.color = new Color(0f, 0.85f, 1f, 0.9f);
+        Gizmos.DrawWireSphere(center, 2f);
+
+        if (boundaryShape == BoundaryShape.Circle)
+        {
+            float radius = Mathf.Min(halfExtents.x, halfExtents.y);
+            int segments = 64;
+            Vector3 prevPoint = center + new Vector3(radius, 0f, 0f);
+            for (int i = 1; i <= segments; i++)
+            {
+                float angle = (i * 360f / segments) * Mathf.Deg2Rad;
+                Vector3 nextPoint = center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                Gizmos.DrawLine(prevPoint, nextPoint);
+                prevPoint = nextPoint;
+            }
+        }
+        else
+        {
+            Vector3 size = new Vector3(halfExtents.x * 2f, 2f, halfExtents.y * 2f);
+            Gizmos.DrawWireCube(center, size);
+        }
     }
 }
