@@ -38,34 +38,63 @@ public class CameraFollow : MonoBehaviour
     [HideInInspector]
     public Vector3 offset = new Vector3(0f, 14f, -22f);
 
+    public static CameraFollow Instance { get; private set; }
+
     private float currentDistance;
     private float targetDistance;
     private float currentYaw = 0f;
     private float targetYaw = 0f;
 
+    void Awake()
+    {
+        Instance = this;
+        if (target == null)
+        {
+            HeroController hero = FindAnyObjectByType<HeroController>();
+            if (hero != null) target = hero.transform;
+        }
+    }
+
     void Start()
     {
         currentDistance = defaultDistance;
         targetDistance = defaultDistance;
-        currentYaw = 0f;
-        targetYaw = 0f;
 
+        // Başlangıçta kamerayı mutlaka karakterin arkasına hizala (önünde değil)
+        AlignBehindTarget();
+    }
+
+    /// <summary>
+    /// Kamerayı karakterin tam arkasına hizalar (Başlangıç, yeni oyun veya ışınlanma durumlarında)
+    /// </summary>
+    public void AlignBehindTarget()
+    {
         if (target == null)
         {
             HeroController hero = FindAnyObjectByType<HeroController>();
-            if (hero != null)
-            {
-                target = hero.transform;
-            }
-            else
-            {
-                Debug.LogWarning("Kamera hedefi bulamadı! Lütfen sahnede HeroController scriptinin bir objeye eklendiğinden emin olun.");
-            }
+            if (hero != null) target = hero.transform;
+        }
+
+        if (target != null)
+        {
+            targetYaw = target.eulerAngles.y;
+            currentYaw = targetYaw;
+
+            Vector3 targetFocusPoint = target.position + Vector3.up * targetHeight;
+            Quaternion rotation = Quaternion.Euler(pitchAngle, currentYaw, 0f);
+            transform.position = targetFocusPoint + rotation * new Vector3(0f, 0f, -currentDistance);
+            transform.LookAt(targetFocusPoint);
         }
     }
 
     void Update()
     {
+        // Menü açıkken kamera kontrollerini yok say
+        if (GameMenuManager.IsMenuOpen)
+        {
+            return;
+        }
+
         // WASD TUŞLARI İLE KAMERA KONTROLÜ
         if (Keyboard.current != null)
         {
@@ -116,7 +145,11 @@ public class CameraFollow : MonoBehaviour
         if (target == null)
         {
             HeroController hero = FindAnyObjectByType<HeroController>();
-            if (hero != null) target = hero.transform;
+            if (hero != null)
+            {
+                target = hero.transform;
+                AlignBehindTarget();
+            }
             else return;
         }
 

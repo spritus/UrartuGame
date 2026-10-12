@@ -30,6 +30,22 @@ public class HeroController : MonoBehaviour
     [Tooltip("Havada iken yatay hareket kontrolü (0.35 = havada süzülmeyi keser, tok ve dik düşüş sağlar)")]
     public float airControl = 0.35f;
 
+    [Header("Zemin Teması ve Ayak Hizalaması (Ground Contact)")]
+    [Tooltip("Ayakların zemine tam basması için dikey hizalama ofseti (Metre). 0.04m ~ 4cm tok basış sağlar.")]
+    public float feetOffset = 0.04f;
+
+    [Tooltip("Karakter kontrolcüsünün zemin temas toleransı (Skin Width). 0.015f havada kalmayı önler.")]
+    public float skinWidth = 0.015f;
+
+    [Tooltip("Karakter kapsül yüksekliği.")]
+    public float capsuleHeight = 2.0f;
+
+    [Tooltip("Karakter kapsül yarıçapı.")]
+    public float capsuleRadius = 0.4f;
+
+    [Tooltip("Karakterin basamak tırmanma yüksekliği.")]
+    public float stepOffset = 0.4f;
+
     [Header("Animation Names")]
     public string idleAnimation = "Idle"; 
     public string runAnimation = "Run"; 
@@ -88,17 +104,25 @@ public class HeroController : MonoBehaviour
 
         characterController = GetComponent<CharacterController>();
 
-        // Zeminle temas ve düşmemesi için kapsül ayarları
-        if (characterController != null)
-        {
-            characterController.center = new Vector3(0, 1f, 0);
-            characterController.height = 2f;
-            characterController.radius = 0.4f;
-            characterController.minMoveDistance = 0f;
-        }
+        // Zeminle temas ve ayakların zemine tam basması için kapsül ayarlarını uygula
+        ApplyCharacterControllerDimensions();
         
         if (animator != null)
         {
+            // EXE ve bağımsız buildlerde animatör kontrolcüsü boşsa Resources'dan yükle
+            if (animator.runtimeAnimatorController == null)
+            {
+                RuntimeAnimatorController resCtrl = Resources.Load<RuntimeAnimatorController>("HeroAutoAnim");
+                if (resCtrl != null) animator.runtimeAnimatorController = resCtrl;
+            }
+
+            // Avatar boşsa Resources'dan yükle
+            if (animator.avatar == null)
+            {
+                Avatar resAv = Resources.Load<Avatar>("HeroAvatar");
+                if (resAv != null) animator.avatar = resAv;
+            }
+
             // CharacterController ile çakışmaması için Root Motion kapatılır
             animator.applyRootMotion = false;
             
@@ -111,6 +135,21 @@ public class HeroController : MonoBehaviour
 
     void Update()
     {
+        // Menü açıkken karakter hareketini ve animasyonunu durdur
+        if (GameMenuManager.IsMenuOpen)
+        {
+            if (isMoving)
+            {
+                isMoving = false;
+                if (animator != null && animator.runtimeAnimatorController != null)
+                {
+                    animator.SetBool("IsRunning", false);
+                    animator.Play(idleAnimation);
+                }
+            }
+            return;
+        }
+
         // SADECE YÖN TUŞLARI (Up, Down, Left, Right Arrow) kahramanı hareket ettirir.
         // WASD tuşları kameraya ayrılmıştır, kahramanı HAREKET ETTİRMEZ!
         float horizontal = 0f;
@@ -140,9 +179,18 @@ public class HeroController : MonoBehaviour
         bool movingNow = movementInput.magnitude >= 0.1f;
 
         // Animator parametresini senkronize et
-        if (animator != null && animator.runtimeAnimatorController != null)
+        if (animator != null)
         {
-            animator.SetBool("IsRunning", movingNow);
+            if (animator.runtimeAnimatorController == null)
+            {
+                RuntimeAnimatorController resCtrl = Resources.Load<RuntimeAnimatorController>("HeroAutoAnim");
+                if (resCtrl != null) animator.runtimeAnimatorController = resCtrl;
+            }
+
+            if (animator.runtimeAnimatorController != null)
+            {
+                animator.SetBool("IsRunning", movingNow);
+            }
         }
 
         // Karakterin dönüşü
@@ -182,7 +230,7 @@ public class HeroController : MonoBehaviour
         {
             if (CheckGroundBelow(groundSnapDistance, out RaycastHit snapHit))
             {
-                float dropDist = snapHit.distance - 0.5f;
+                float dropDist = (snapHit.distance - 0.5f) + feetOffset;
                 if (dropDist > 0.001f)
                 {
                     characterController.Move(Vector3.down * dropDist);
@@ -351,7 +399,7 @@ public class HeroController : MonoBehaviour
             if (h.collider != null && h.collider.gameObject != gameObject && !h.collider.transform.IsChildOf(transform))
             {
                 float distFromFeet = h.distance - 0.5f;
-                if (distFromFeet >= -0.05f && distFromFeet < minDistance)
+                if (distFromFeet >= -0.20f && distFromFeet < minDistance)
                 {
                     minDistance = distFromFeet;
                     closestHit = h;
@@ -419,6 +467,38 @@ public class HeroController : MonoBehaviour
         }
 
         return new Vector2(500f, 500f) * maxDistancePercentage;
+    }
+
+    /// <summary>
+    /// Karakterin ayaklarının havada kalmaması ve zemine tam basması için
+    /// CharacterController boyut ve merkez ayarlarını uygular.
+    /// </summary>
+    public void ApplyCharacterControllerDimensions()
+    {
+        if (characterController == null)
+        {
+            characterController = GetComponent<CharacterController>();
+        }
+
+        if (characterController != null)
+        {
+            characterController.skinWidth = skinWidth;
+            characterController.height = capsuleHeight;
+            characterController.radius = capsuleRadius;
+            characterController.stepOffset = stepOffset;
+            characterController.minMoveDistance = 0f;
+
+            float scaleY = Mathf.Max(0.001f, transform.localScale.y);
+            // Formül: center.y = (height * 0.5f) + skinWidth + (feetOffset / scaleY)
+            // Bu sayede karakter yere bastığında ayak tabanı (transform pivotu) tam zemin hizasında (ground - feetOffset) durur.
+            float centerY = (characterController.height * 0.5f) + characterController.skinWidth + (feetOffset / scaleY);
+            characterController.center = new Vector3(0, centerY, 0);
+        }
+    }
+
+    private void OnValidate()
+    {
+        ApplyCharacterControllerDimensions();
     }
 
     /// <summary>

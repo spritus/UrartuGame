@@ -72,6 +72,7 @@ public class AutoSetup : MonoBehaviour
                 cf.clampYaw = false;
                 cf.minYawAngle = -70f;
                 cf.maxYawAngle = 70f;
+                cf.AlignBehindTarget();
             }
 
             Animator anim = heroObj.GetComponent<Animator>();
@@ -82,10 +83,6 @@ public class AutoSetup : MonoBehaviour
 
             CharacterController cc = heroObj.GetComponent<CharacterController>();
             if (cc == null) cc = heroObj.AddComponent<CharacterController>();
-            cc.center = new Vector3(0, 1f, 0);
-            cc.height = 2f;
-            cc.radius = 0.4f;
-            cc.minMoveDistance = 0f;
 
             HeroController hc = heroObj.GetComponent<HeroController>();
             if (hc == null) hc = heroObj.AddComponent<HeroController>();
@@ -99,38 +96,70 @@ public class AutoSetup : MonoBehaviour
             hc.airControl = 0.35f;
             hc.enableCenterLimit = true;
             hc.maxDistancePercentage = 0.70f;
+            hc.feetOffset = 0.04f;
+            hc.skinWidth = 0.015f;
+            hc.capsuleHeight = 2.0f;
+            hc.capsuleRadius = 0.4f;
+            hc.stepOffset = 0.4f;
+            hc.ApplyCharacterControllerDimensions();
 
-#if UNITY_EDITOR
-            // Controller kontrolü ve otomatik bağlama
-            string controllerPath = "Assets/Hero/HeroAutoAnim.controller";
-            RuntimeAnimatorController controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(controllerPath);
-            
-            if (anim.runtimeAnimatorController == null && controller != null)
+            // 1. Controller kontrolü ve bağlama (Hem Standalone EXE hem Editör)
+            if (anim.runtimeAnimatorController == null)
             {
-                anim.runtimeAnimatorController = controller;
+                RuntimeAnimatorController resCtrl = Resources.Load<RuntimeAnimatorController>("HeroAutoAnim");
+                if (resCtrl != null)
+                {
+                    anim.runtimeAnimatorController = resCtrl;
+                }
+#if UNITY_EDITOR
+                else
+                {
+                    string controllerPath = "Assets/Hero/HeroAutoAnim.controller";
+                    RuntimeAnimatorController editorCtrl = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(controllerPath);
+                    if (editorCtrl != null) anim.runtimeAnimatorController = editorCtrl;
+                }
+#endif
             }
 
-            // Avatar kontrolü ve otomatik bağlama
+            // 2. Avatar kontrolü ve bağlama (Hem Standalone EXE hem Editör)
             if (anim.avatar == null)
             {
-                string[] fbxFiles = Directory.GetFiles("Assets/Hero", "*.fbx", SearchOption.AllDirectories);
-                foreach (var fbx in fbxFiles)
+                Avatar resAvatar = Resources.Load<Avatar>("HeroAvatar");
+                if (resAvatar != null)
                 {
-                    string p = fbx.Replace('\\', '/');
-                    Object[] assets = AssetDatabase.LoadAllAssetsAtPath(p);
-                    foreach (var a in assets)
-                    {
-                        if (a is Avatar av)
-                        {
-                            anim.avatar = av;
-                            break;
-                        }
-                    }
-                    if (anim.avatar != null) break;
+                    anim.avatar = resAvatar;
                 }
-            }
+#if UNITY_EDITOR
+                else
+                {
+                    string[] fbxFiles = Directory.GetFiles("Assets/Hero", "*.fbx", SearchOption.AllDirectories);
+                    foreach (var fbx in fbxFiles)
+                    {
+                        string p = fbx.Replace('\\', '/');
+                        Object[] assets = AssetDatabase.LoadAllAssetsAtPath(p);
+                        foreach (var a in assets)
+                        {
+                            if (a is Avatar av)
+                            {
+                                anim.avatar = av;
+                                break;
+                            }
+                        }
+                        if (anim.avatar != null) break;
+                    }
+                }
 #endif
-            Debug.Log("✔️ [AutoSetup] HeroController, Animator ve Kamera başarıyla hazırlandı!");
+            }
+
+            // 3. MENÜ YÖNETİCİSİ KONTROLÜ
+            GameMenuManager menu = Object.FindAnyObjectByType<GameMenuManager>();
+            if (menu == null)
+            {
+                GameObject menuObj = new GameObject("GameMenuManager");
+                menuObj.AddComponent<GameMenuManager>();
+            }
+
+            Debug.Log("✔️ [AutoSetup] HeroController, Animator, Kamera ve GameMenuManager başarıyla hazırlandı!");
         }
     }
 }

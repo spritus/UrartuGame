@@ -187,6 +187,26 @@ public class ForceFixAnimator
             AssetDatabase.SaveAssets();
             Debug.Log("✔️ [HeroAutoAnim.controller] Başarıyla oluşturuldu ve klipler bağlandı!");
 
+            // 4.5. Resources klasörü hazırlığı (EXE Standalone desteği için)
+            if (!Directory.Exists("Assets/Resources"))
+            {
+                AssetDatabase.CreateFolder("Assets", "Resources");
+            }
+
+            string resControllerPath = "Assets/Resources/HeroAutoAnim.controller";
+            AssetDatabase.CopyAsset(controllerPath, resControllerPath);
+            RuntimeAnimatorController resController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(resControllerPath);
+            if (resController == null) resController = controller;
+
+            string resAvatarPath = "Assets/Resources/HeroAvatar.asset";
+            if (heroAvatar != null)
+            {
+                Avatar clonedAvatar = Object.Instantiate(heroAvatar);
+                clonedAvatar.name = "HeroAvatar";
+                AssetDatabase.CreateAsset(clonedAvatar, resAvatarPath);
+                Debug.Log("✔️ [HeroAvatar.asset] Resources içine kaydedildi (EXE desteği)!");
+            }
+
             // 5. Sahnedeki Karakteri Bul ve Bağla
             GameObject hero = GameObject.Find("Hero");
             if (hero == null) hero = GameObject.FindGameObjectWithTag("Player");
@@ -204,6 +224,13 @@ public class ForceFixAnimator
 
             if (hero != null)
             {
+                // Prefab bağlantısını tamamen çöz (Unpack) - Böylece Animator ve scriptler SampleScene.unity içine kalıcı yazılır!
+                if (PrefabUtility.IsPartOfPrefabInstance(hero))
+                {
+                    PrefabUtility.UnpackPrefabInstance(hero, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                    Debug.Log("✔️ Hero nesnesi Prefab'den ayrıştırıldı (Bileşenlerin sahneye kalıcı kaydedilmesi için).");
+                }
+
                 hero.name = "Hero";
                 hero.tag = "Player";
 
@@ -211,7 +238,7 @@ public class ForceFixAnimator
                 if (anim == null) anim = hero.GetComponentInChildren<Animator>();
                 if (anim == null) anim = hero.AddComponent<Animator>();
 
-                anim.runtimeAnimatorController = controller;
+                anim.runtimeAnimatorController = resController != null ? resController : controller;
                 if (heroAvatar != null)
                 {
                     anim.avatar = heroAvatar;
@@ -219,13 +246,14 @@ public class ForceFixAnimator
                 anim.applyRootMotion = false;
                 EditorUtility.SetDirty(anim);
 
+                SkinnedMeshRenderer smr = hero.GetComponentInChildren<SkinnedMeshRenderer>();
+                if (smr != null)
+                {
+                    Debug.Log($"🦶 [HERO FEET DEBUG] Bounds min.y={smr.bounds.min.y}, max.y={smr.bounds.max.y}, transform.y={hero.transform.position.y}, local min.y={smr.localBounds.min.y}");
+                }
+
                 CharacterController cc = hero.GetComponent<CharacterController>();
                 if (cc == null) cc = hero.AddComponent<CharacterController>();
-                cc.center = new Vector3(0, 1f, 0);
-                cc.height = 2f;
-                cc.radius = 0.4f;
-                cc.minMoveDistance = 0f;
-                EditorUtility.SetDirty(cc);
 
                 HeroController hc = hero.GetComponent<HeroController>();
                 if (hc == null) hc = hero.AddComponent<HeroController>();
@@ -240,7 +268,15 @@ public class ForceFixAnimator
                 hc.airControl = 0.35f;
                 hc.enableCenterLimit = true;
                 hc.maxDistancePercentage = 0.70f;
+                hc.feetOffset = 0.04f;
+                hc.skinWidth = 0.015f;
+                hc.capsuleHeight = 2.0f;
+                hc.capsuleRadius = 0.4f;
+                hc.stepOffset = 0.4f;
+                hc.ApplyCharacterControllerDimensions();
+                EditorUtility.SetDirty(cc);
                 EditorUtility.SetDirty(hc);
+                EditorUtility.SetDirty(hero);
 
                 // Kamera Takibi
                 Camera cam = Camera.main;
@@ -257,11 +293,22 @@ public class ForceFixAnimator
                     cf.minYawAngle = -70f;
                     cf.maxYawAngle = 70f;
                     EditorUtility.SetDirty(cf);
+                    EditorUtility.SetDirty(cam.gameObject);
+                }
+
+                // Menü Yöneticisi
+                GameMenuManager gmm = Object.FindAnyObjectByType<GameMenuManager>();
+                if (gmm == null)
+                {
+                    GameObject menuObj = new GameObject("GameMenuManager");
+                    gmm = menuObj.AddComponent<GameMenuManager>();
+                    EditorUtility.SetDirty(menuObj);
                 }
 
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
                 EditorSceneManager.SaveOpenScenes();
-                Debug.Log("🎉 [SİHİRLİ DÜZELTME TAMAMLANDI] Hero nesnesi, Animator, Avatar ve Kamera hazırlandı ve sahne kaydedildi!");
+                AssetDatabase.SaveAssets();
+                Debug.Log("🎉 [SİHİRLİ DÜZELTME TAMAMLANDI] Hero nesnesi, Animator, Avatar, Resources, Kamera ve GameMenuManager hazırlandı ve sahne kaydedildi!");
             }
             else
             {
